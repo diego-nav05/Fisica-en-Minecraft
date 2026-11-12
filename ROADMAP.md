@@ -42,26 +42,26 @@ y el mod compara lo que se mide en el mundo con lo que predice la teoría.
 
 ## Fase 2 — Cañón y proyectil en el juego
 
-- [ ] Hito 2.1: bloque «cañón» con su entidad de bloque (guarda rapidez, elevación, azimut,
+- [x] Hito 2.1: bloque «cañón» con su entidad de bloque (guarda rapidez, elevación, azimut,
   gravedad y rozamiento), objeto, modelo, texturas, receta y traducciones.
-- [ ] Hito 2.2: entidad «proyectil» cuyo movimiento lo calcula el paquete de física tick a
+- [x] Hito 2.2: entidad «proyectil» cuyo movimiento lo calcula el paquete de física tick a
   tick (no la gravedad de Minecraft), con detección de impacto contra bloques y estela.
-- [ ] Hito 2.3: disparo con clic derecho y con señal de redstone.
+- [x] Hito 2.3: disparo con clic derecho y con señal de redstone.
 
 ## Fase 3 — Laboratorio
 
-- [ ] Hito 3.1: comando `/canon` para configurar el cañón (rapidez, ángulo, azimut,
+- [x] Hito 3.1: comando `/canon` para configurar el cañón (rapidez, ángulo, azimut,
   gravedad, rozamiento) y consultar las predicciones teóricas.
-- [ ] Hito 3.2: informe de cada disparo: alcance, tiempo de vuelo y altura máxima medidos
+- [x] Hito 3.2: informe de cada disparo: alcance, tiempo de vuelo y altura máxima medidos
   frente a los teóricos, con su error.
-- [ ] Hito 3.3: vista previa de la trayectoria con partículas y puntería automática a un
+- [x] Hito 3.3: vista previa de la trayectoria con partículas y puntería automática a un
   objetivo (tiro tenso o por elevación).
 
 ## Fase 4 — Verificación y entrega
 
-- [ ] Hito 4.1: pruebas dentro del juego (Fabric GameTest, servidor sin interfaz) que
+- [x] Hito 4.1: pruebas dentro del juego (Fabric GameTest, servidor sin interfaz) que
   disparan el cañón y comprueban que el impacto coincide con la teoría.
-- [ ] Hito 4.2: README con instalación, uso, la física explicada y prácticas propuestas.
+- [x] Hito 4.2: README con instalación, uso, la física explicada y prácticas propuestas.
 
 ## Ideas para más adelante (fuera del alcance actual)
 

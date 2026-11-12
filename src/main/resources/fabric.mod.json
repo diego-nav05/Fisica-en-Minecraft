@@ -9,7 +9,10 @@
 		"sources": "https://github.com/diego-nav05/Fisica-en-Minecraft"
 	},
 	"environment": "*",
-	"entrypoints": {},
+	"entrypoints": {
+		"main": ["io.github.diegonav05.tiroparabolico.TiroParabolico"],
+		"client": ["io.github.diegonav05.tiroparabolico.cliente.TiroParabolicoClient"]
+	},
 	"depends": {
 		"fabricloader": ">=0.16.0",
 		"minecraft": "~1.21.1",

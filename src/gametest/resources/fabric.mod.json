@@ -1,0 +1,14 @@
+{
+	"schemaVersion": 1,
+	"id": "tiroparabolico_gametest",
+	"version": "1.0.0",
+	"name": "Tiro Parabólico: pruebas en el juego",
+	"environment": "*",
+	"entrypoints": {
+		"fabric-gametest": ["io.github.diegonav05.tiroparabolico.prueba.CanonGameTest"]
+	},
+	"depends": {
+		"tiroparabolico": "*",
+		"fabric-gametest-api-v1": "*"
+	}
+}
