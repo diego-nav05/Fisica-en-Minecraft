@@ -1,0 +1,18 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "redstone",
+	"pattern": [
+		"III",
+		"IGD",
+		"III"
+	],
+	"key": {
+		"I": { "item": "minecraft:iron_ingot" },
+		"G": { "item": "minecraft:gunpowder" },
+		"D": { "item": "minecraft:dispenser" }
+	},
+	"result": {
+		"id": "tiroparabolico:canon",
+		"count": 1
+	}
+}

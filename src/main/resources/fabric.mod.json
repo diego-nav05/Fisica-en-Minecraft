@@ -1,0 +1,22 @@
+{
+	"schemaVersion": 1,
+	"id": "tiroparabolico",
+	"version": "${version}",
+	"name": "Tiro Parabólico",
+	"description": "Laboratorio de Física I: un cañón que dispara proyectiles siguiendo las ecuaciones del tiro parabólico y compara la medida con la teoría.",
+	"authors": ["diego-nav05"],
+	"contact": {
+		"sources": "https://github.com/diego-nav05/Fisica-en-Minecraft"
+	},
+	"environment": "*",
+	"entrypoints": {
+		"main": ["io.github.diegonav05.tiroparabolico.TiroParabolico"],
+		"client": ["io.github.diegonav05.tiroparabolico.cliente.TiroParabolicoClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.16.0",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}

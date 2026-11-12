@@ -1,0 +1,8 @@
+{
+	"variants": {
+		"facing=north": { "model": "tiroparabolico:block/canon" },
+		"facing=east": { "model": "tiroparabolico:block/canon", "y": 90 },
+		"facing=south": { "model": "tiroparabolico:block/canon", "y": 180 },
+		"facing=west": { "model": "tiroparabolico:block/canon", "y": 270 }
+	}
+}
