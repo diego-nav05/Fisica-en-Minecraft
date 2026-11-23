@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Optional;
 
 import net.minecraft.entity.Entity;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -29,6 +32,17 @@ public final class Balistica {
 
 	public static Vec3d aVec3d(Vector3 v) {
 		return new Vec3d(v.x(), v.y(), v.z());
+	}
+
+	/**
+	 * Partículas visibles desde lejos: se envían forzadas a cada jugador del mundo, así que se ven
+	 * hasta 512 bloques (las normales solo a 32). Sirve para seguir el disparo desde lejos.
+	 */
+	public static void particulasLejanas(ServerWorld mundo, ParticleEffect particula, double x, double y, double z,
+			int cantidad, double dispersion, double velocidad) {
+		for (ServerPlayerEntity jugador : mundo.getPlayers()) {
+			mundo.spawnParticles(jugador, particula, true, x, y, z, cantidad, dispersion, dispersion, dispersion, velocidad);
+		}
 	}
 
 	/**

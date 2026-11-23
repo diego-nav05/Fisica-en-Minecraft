@@ -45,10 +45,17 @@ public class ProyectilEntity extends Entity implements FlyingItemEntity {
 	private ModeloFuerzas modelo;
 	@Nullable
 	private BlockPos canon;
+	/** Jugador que recibe el informe (el tirador, o el operador del cañón si disparó la redstone). */
 	@Nullable
-	private UUID tirador;
+	private UUID receptor;
+	/** Informe resumido en la barra de acción en vez del informe completo en el chat. */
+	private boolean informeCompacto;
 	private double alturaMaxima;
 	private int ticksDeVuelo;
+	/** Ticks que la bala queda en el suelo tras el impacto antes de desaparecer. */
+	private int ticksRestos;
+	private boolean aterrizado;
+	private int ticksEnSuelo;
 
 	public ProyectilEntity(EntityType<? extends ProyectilEntity> tipo, World mundo) {
 		super(tipo, mundo);
@@ -56,14 +63,22 @@ public class ProyectilEntity extends Entity implements FlyingItemEntity {
 		setNoGravity(true);
 	}
 
-	/** Fija las condiciones iniciales. Debe llamarse antes de añadir la entidad al mundo. */
+	/**
+	 * Fija las condiciones iniciales. Debe llamarse antes de añadir la entidad al mundo.
+	 *
+	 * @param receptor        jugador que recibirá el informe, o {@code null}
+	 * @param informeCompacto verdadero para un resumen de una línea (disparos automáticos)
+	 * @param ticksRestos     ticks que la bala queda visible en el suelo tras el impacto
+	 */
 	public void configurar(Lanzamiento lanzamiento, ModeloFuerzas modelo, @Nullable BlockPos canon,
-			@Nullable UUID tirador) {
+			@Nullable UUID receptor, boolean informeCompacto, int ticksRestos) {
 		this.ideal = lanzamiento;
 		this.modelo = modelo;
 		this.estado = lanzamiento.estado(0);
 		this.canon = canon;
-		this.tirador = tirador;
+		this.receptor = receptor;
+		this.informeCompacto = informeCompacto;
+		this.ticksRestos = Math.max(0, ticksRestos);
 		this.alturaMaxima = lanzamiento.posicionInicial().y();
 		colocarEn(estado);
 	}
@@ -73,10 +88,19 @@ public class ProyectilEntity extends Entity implements FlyingItemEntity {
 		return Optional.ofNullable(estado);
 	}
 
+	/** Verdadero cuando ya ha impactado y solo queda como resto en el suelo. */
+	public boolean aterrizado() {
+		return aterrizado;
+	}
+
 	@Override
 	public void tick() {
 		super.tick();
 		if (!(getWorld() instanceof ServerWorld mundo)) {
+			return;
+		}
+		if (aterrizado) {
+			reposar(mundo);
 			return;
 		}
 		if (estado == null || modelo == null || ideal == null) {
@@ -102,7 +126,7 @@ public class ProyectilEntity extends Entity implements FlyingItemEntity {
 		alturaMaxima = Math.max(alturaMaxima, estado.posicion().y());
 		colocarEn(estado);
 		Vector3 p = estado.posicion();
-		mundo.spawnParticles(ParticleTypes.END_ROD, p.x(), p.y(), p.z(), 1, 0, 0, 0, 0);
+		Balistica.particulasLejanas(mundo, ParticleTypes.END_ROD, p.x(), p.y(), p.z(), 1, 0, 0);
 
 		if (ticksDeVuelo >= Balistica.TICKS_MAXIMOS) {
 			terminarSinImpacto(mundo, "superó el tiempo máximo de vuelo");
@@ -125,20 +149,45 @@ public class ProyectilEntity extends Entity implements FlyingItemEntity {
 		if (canon != null && mundo.isChunkLoaded(canon) && mundo.getBlockEntity(canon) instanceof CanonBlockEntity c) {
 			c.registrarInforme(informe);
 		}
-		ServerPlayerEntity jugador = jugadorTirador(mundo);
+		ServerPlayerEntity jugador = jugadorReceptor(mundo);
 		if (jugador != null) {
-			Mensajes.enviarInforme(jugador, informe, modelo);
+			if (informeCompacto) {
+				Mensajes.enviarInformeCompacto(jugador, informe);
+			} else {
+				Mensajes.enviarInforme(jugador, informe, modelo);
+			}
 		}
 
-		mundo.spawnParticles(ParticleTypes.EXPLOSION, p.x(), p.y(), p.z(), 1, 0, 0, 0, 0);
-		mundo.spawnParticles(ParticleTypes.FLAME, p.x(), p.y(), p.z(), 12, 0.1, 0.1, 0.1, 0.03);
+		Balistica.particulasLejanas(mundo, ParticleTypes.EXPLOSION, p.x(), p.y(), p.z(), 1, 0, 0);
+		Balistica.particulasLejanas(mundo, ParticleTypes.FLAME, p.x(), p.y(), p.z(), 12, 0.1, 0.03);
 		mundo.playSound(null, BlockPos.ofFloored(new Vec3d(p.x(), p.y(), p.z())),
 				SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.BLOCKS, 0.8f, 1.2f);
-		discard();
+
+		if (ticksRestos <= 0) {
+			discard();
+			return;
+		}
+		// La bala se queda en el punto de impacto, brillando para que se vea desde lejos.
+		aterrizado = true;
+		estado = impacto;
+		setPosition(p.x(), p.y(), p.z());
+		setVelocity(Vec3d.ZERO);
+		setGlowing(true);
+	}
+
+	/** La bala reposa en el suelo y marca el impacto hasta que se acaba su tiempo. */
+	private void reposar(ServerWorld mundo) {
+		ticksEnSuelo++;
+		if (ticksEnSuelo % 10 == 0) {
+			Balistica.particulasLejanas(mundo, ParticleTypes.HAPPY_VILLAGER, getX(), getY() + 0.3, getZ(), 2, 0.1, 0);
+		}
+		if (ticksEnSuelo >= ticksRestos) {
+			discard();
+		}
 	}
 
 	private void terminarSinImpacto(ServerWorld mundo, String motivo) {
-		ServerPlayerEntity jugador = jugadorTirador(mundo);
+		ServerPlayerEntity jugador = jugadorReceptor(mundo);
 		if (jugador != null) {
 			Mensajes.enviarVueloInterrumpido(jugador, motivo, ticksDeVuelo * Constantes.DT_TICK);
 		}
@@ -146,8 +195,8 @@ public class ProyectilEntity extends Entity implements FlyingItemEntity {
 	}
 
 	@Nullable
-	private ServerPlayerEntity jugadorTirador(ServerWorld mundo) {
-		return tirador == null ? null : mundo.getServer().getPlayerManager().getPlayer(tirador);
+	private ServerPlayerEntity jugadorReceptor(ServerWorld mundo) {
+		return receptor == null ? null : mundo.getServer().getPlayerManager().getPlayer(receptor);
 	}
 
 	@Override

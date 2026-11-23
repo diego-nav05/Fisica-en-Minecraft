@@ -63,6 +63,13 @@ y el mod compara lo que se mide en el mundo con lo que predice la teoría.
   disparan el cañón y comprueban que el impacto coincide con la teoría.
 - [x] Hito 4.2: README con instalación, uso, la física explicada y prácticas propuestas.
 
+## Fase 5 — Mejoras para la demostración
+
+- [x] Hito 5.1: manejar los cañones por comandos desde lejos (selección y lista de cañones).
+- [x] Hito 5.2: disparo en bucle mientras haya señal de redstone (cadencia configurable).
+- [x] Hito 5.3: actuar sobre todos los cañones a la vez (comando y modo de redstone).
+- [x] Hito 5.4: la bala queda un rato en el suelo tras el impacto, visible desde lejos.
+
 ## Ideas para más adelante (fuera del alcance actual)
 
 - Pantalla gráfica para configurar el cañón sin comandos.

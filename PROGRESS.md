@@ -2,7 +2,7 @@
 
 Estado del proyecto respecto a `ROADMAP.md`. Se actualiza al terminar cada hito.
 
-## Fase actual: todas las fases del roadmap (0 – 4) están completadas
+## Fase actual: fases 0 – 5 completadas
 
 Lo siguiente serían las «Ideas para más adelante» del roadmap.
 
@@ -11,7 +11,7 @@ Lo siguiente serían las «Ideas para más adelante» del roadmap.
 | Comprobación | Comando | Resultado |
 | --- | --- | --- |
 | Compilación + tests JUnit de física | `./gradlew build` | 51 tests en verde |
-| Pruebas dentro del juego (servidor) | `./gradlew runGametest` | 14 pruebas en verde |
+| Pruebas dentro del juego (servidor) | `./gradlew runGametest` | 20 pruebas en verde |
 
 **Sin verificar:** la parte visual en un cliente real (aspecto del bloque, proyectil en vuelo,
 partículas, textos del chat). El código de cliente compila contra Minecraft 1.21.1, pero el
@@ -54,6 +54,23 @@ entorno donde se desarrolló no puede abrir el juego. Hay que probarlo con `./gr
   menos de 2 cm y 5 ms de error en tiros a 0°, 45° y 75°, y con gravedad lunar.
 - **4.2 README** con uso, física, estructura y prácticas propuestas.
 
+### Fase 5 — Mejoras para la demostración
+
+- **5.1 Control a distancia**: `/canon seleccionar` (mirada o coordenadas) y `/canon lista`
+  (pulsable). La mirada alcanza 160 bloques y el cañón seleccionado responde a cualquier
+  distancia. Registro de cañones cargados (`RegistroCanones`). Partículas forzadas, visibles
+  hasta 512 bloques.
+- **5.2 Bucle con redstone**: con la señal mantenida dispara cada `cadencia` segundos (2 s por
+  defecto; 0 = un disparo por pulso). Los disparos automáticos envían un resumen de una línea
+  a la barra de acción del último jugador que manejó el cañón.
+- **5.3 Todos los cañones**: `/canon todos <comando>` y modo `/canon redstone todos`, en el que
+  la señal de un cañón dispara todos los cañones cargados.
+- **5.4 Restos en el suelo**: la bala queda brillando en el punto de impacto `restos` segundos
+  (10 por defecto) antes de desaparecer.
+- **5.5 Pruebas**: 6 pruebas nuevas en el juego (bucle, restos, control a distancia, guardado,
+  «todos» por comando y por redstone). Las de «todos» van en lotes propios porque afectan a
+  todos los cañones cargados.
+
 ## Decisiones y notas
 
 - El `ROADMAP.md` original no estaba en el repositorio; el plan se redactó desde cero.
@@ -62,5 +79,7 @@ entorno donde se desarrolló no puede abrir el juego. Hay que probarlo con `./gr
 - El proyectil no daña entidades ni rompe bloques: es un instrumento de medida.
 - Fallos encontrados por las pruebas dentro del juego y corregidos: el azimut inicial de un
   cañón orientado al este salía 270° en lugar de −90°.
+- La selección de cañón de cada jugador no se guarda al cerrar el servidor; la cadencia, los
+  restos y el modo de redstone sí se guardan con cada cañón.
 - Caso límite conocido: si el proyectil llega a la cara de un bloque justo al acabar un tick,
   Minecraft sitúa el choque hasta 0,5 mm dentro del bloque.
