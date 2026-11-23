@@ -20,6 +20,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
+import io.github.diegonav05.tiroparabolico.entidad.EfectosImpacto;
 import io.github.diegonav05.tiroparabolico.entidad.ProyectilEntity;
 import io.github.diegonav05.tiroparabolico.fisica.Constantes;
 import io.github.diegonav05.tiroparabolico.fisica.InformeDisparo;
@@ -49,6 +50,8 @@ public class CanonBlockEntity extends BlockEntity {
 	public static final double CADENCIA_MAX = 60;
 	public static final double CADENCIA_POR_DEFECTO = 2;
 	public static final double RESTOS_MAX = 120;
+	/** Potencia máxima de la explosión al impactar (la dinamita es 4). */
+	public static final float POTENCIA_MAX = 10;
 	public static final double RESTOS_POR_DEFECTO = 10;
 	/** Altura de la boca del cañón sobre la base del bloque (m). */
 	public static final double ALTURA_BOCA = 1.5;
@@ -66,6 +69,12 @@ public class CanonBlockEntity extends BlockEntity {
 	private double restos = RESTOS_POR_DEFECTO;
 	/** Si es verdadero, su señal de redstone dispara también todos los demás cañones cargados. */
 	private boolean redstoneTodos;
+	/** Si la bala mata a las criaturas que golpea o que están donde cae. */
+	private boolean dano;
+	/** Potencia de la explosión al impactar; 0 = sin explosión. */
+	private float potenciaExplosion;
+	/** Si esa explosión rompe bloques. */
+	private boolean romperBloques = true;
 
 	/** Último jugador que lo manejó: recibe el informe de los disparos por redstone. No se guarda. */
 	@Nullable
@@ -191,6 +200,34 @@ public class CanonBlockEntity extends BlockEntity {
 		markDirty();
 	}
 
+	public boolean isDano() {
+		return dano;
+	}
+
+	public void setDano(boolean valor) {
+		this.dano = valor;
+		markDirty();
+	}
+
+	public float getPotenciaExplosion() {
+		return potenciaExplosion;
+	}
+
+	public boolean isRomperBloques() {
+		return romperBloques;
+	}
+
+	/** Explosión al impactar: potencia 0 la desactiva. */
+	public void setExplosion(double potencia, boolean romper) {
+		this.potenciaExplosion = (float) MathHelper.clamp(potencia, 0, POTENCIA_MAX);
+		this.romperBloques = romper;
+		markDirty();
+	}
+
+	public EfectosImpacto efectos() {
+		return new EfectosImpacto(dano, potenciaExplosion, romperBloques);
+	}
+
 	public void setOperador(@Nullable UUID jugador) {
 		this.operador = jugador;
 	}
@@ -263,7 +300,7 @@ public class CanonBlockEntity extends BlockEntity {
 		UUID receptor = tirador != null ? tirador.getUuid() : operador;
 		ProyectilEntity proyectil = new ProyectilEntity(ModContenido.PROYECTIL, mundo);
 		proyectil.configurar(lanzamiento(), modelo(), pos, receptor, tirador == null,
-				(int) Math.round(restos / Constantes.DT_TICK));
+				(int) Math.round(restos / Constantes.DT_TICK), efectos());
 		mundo.spawnEntity(proyectil);
 		disparos++;
 
@@ -337,6 +374,9 @@ public class CanonBlockEntity extends BlockEntity {
 		nbt.putDouble("Cadencia", cadencia);
 		nbt.putDouble("Restos", restos);
 		nbt.putBoolean("RedstoneTodos", redstoneTodos);
+		nbt.putBoolean("Dano", dano);
+		nbt.putFloat("PotenciaExplosion", potenciaExplosion);
+		nbt.putBoolean("RomperBloques", romperBloques);
 	}
 
 	@Override
@@ -364,5 +404,12 @@ public class CanonBlockEntity extends BlockEntity {
 			restos = MathHelper.clamp(nbt.getDouble("Restos"), 0, RESTOS_MAX);
 		}
 		redstoneTodos = nbt.getBoolean("RedstoneTodos");
+		dano = nbt.getBoolean("Dano");
+		if (nbt.contains("PotenciaExplosion", NbtElement.NUMBER_TYPE)) {
+			potenciaExplosion = MathHelper.clamp(nbt.getFloat("PotenciaExplosion"), 0, POTENCIA_MAX);
+		}
+		if (nbt.contains("RomperBloques")) {
+			romperBloques = nbt.getBoolean("RomperBloques");
+		}
 	}
 }

@@ -69,6 +69,7 @@ y el mod compara lo que se mide en el mundo con lo que predice la teoría.
 - [x] Hito 5.2: disparo en bucle mientras haya señal de redstone (cadencia configurable).
 - [x] Hito 5.3: actuar sobre todos los cañones a la vez (comando y modo de redstone).
 - [x] Hito 5.4: la bala queda un rato en el suelo tras el impacto, visible desde lejos.
+- [x] Hito 5.5: opciones de daño letal y de explosión al impactar.
 
 ## Ideas para más adelante (fuera del alcance actual)
 

@@ -60,6 +60,8 @@ medido en el mundo con lo que predice la teoría.
 | `/canon cadencia <s>` | Segundos entre disparos con la señal de redstone mantenida (0 = uno por pulso) |
 | `/canon redstone todos\|solo` | Si la señal de este cañón dispara todos los cañones o solo él |
 | `/canon restos <s>` | Segundos que la bala queda en el suelo tras el impacto (0 – 120) |
+| `/canon daño si\|no` | Con daño, la bala mata lo que golpea en vuelo y lo que hay donde cae (también `dano`) |
+| `/canon explosion <potencia> [romper\|sin_romper]` | Explosión al impactar (0 = ninguna, 4 = dinamita, máx. 10) |
 | `/canon` o `/canon info` | Configuración y predicción teórica |
 | `/canon velocidad <m/s>` | Rapidez inicial (0,5 – 100) |
 | `/canon angulo <grados>` | Ángulo de elevación (−90 – 90) |
@@ -140,7 +142,8 @@ Compila, ejecuta los tests JUnit de física y deja el mod en `build/libs/tiro-pa
 
 Arranca un servidor sin interfaz, coloca cañones reales, dispara y comprueba que el impacto
 coincide con la teoría (2 cm, 5 ms), además de los comandos, la redstone (también en bucle y
-el modo «todos»), los restos en el suelo, el control a distancia y el guardado: 20 pruebas.
+el modo «todos»), los restos en el suelo, el control a distancia, el daño, las explosiones y
+el guardado: 26 pruebas.
 
 ```bash
 ./gradlew runClient

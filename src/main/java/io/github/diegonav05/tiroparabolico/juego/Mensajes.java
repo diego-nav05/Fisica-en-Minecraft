@@ -89,6 +89,12 @@ public final class Mensajes {
 				: "dispara cada " + num(canon.getCadencia(), 2) + " s"));
 		t.append("\n").append(dato("  Su señal activa:", canon.isRedstoneTodos() ? "todos los cañones" : "solo este cañón"));
 		t.append("\n").append(dato("  Restos en el suelo:", num(canon.getRestos(), 1) + " s"));
+		t.append("\n").append(Text.literal("Al impactar:").formatted(Formatting.AQUA));
+		t.append("\n").append(dato("  Daño:", canon.isDano() ? "sí (mata lo que golpea y lo que hay donde cae)" : "no"));
+		t.append("\n").append(dato("  Explosión:", canon.getPotenciaExplosion() <= 0
+				? "no"
+				: "potencia " + num(canon.getPotenciaExplosion(), 1)
+						+ (canon.isRomperBloques() ? ", rompe bloques" : ", sin romper bloques")));
 		return t;
 	}
 
@@ -140,6 +146,11 @@ public final class Mensajes {
 			texto += " · error " + num(informe.alcance().errorRelativoPorcentaje(), 2) + " %";
 		}
 		return Text.literal(texto).formatted(Formatting.GOLD);
+	}
+
+	public static void enviarBajas(ServerPlayerEntity jugador, int muertas) {
+		jugador.sendMessage(Text.literal("La bala ha eliminado " + (muertas == 1 ? "a 1 criatura." : "a " + muertas
+				+ " criaturas.")).formatted(Formatting.RED));
 	}
 
 	public static void enviarInformeCompacto(ServerPlayerEntity jugador, InformeDisparo informe) {

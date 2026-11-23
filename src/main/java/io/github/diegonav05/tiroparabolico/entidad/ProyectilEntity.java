@@ -6,7 +6,12 @@ import java.util.UUID;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.FlyingItemEntity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.data.DataTracker;
+import net.minecraft.entity.projectile.ProjectileUtil;
+import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.util.math.Box;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.ParticleTypes;
@@ -56,6 +61,12 @@ public class ProyectilEntity extends Entity implements FlyingItemEntity {
 	private int ticksRestos;
 	private boolean aterrizado;
 	private int ticksEnSuelo;
+	private EfectosImpacto efectos = EfectosImpacto.NINGUNO;
+
+	/** Daño que asegura la muerte de cualquier criatura normal, incluso con armadura. */
+	private static final float DANO_LETAL = 10000f;
+	/** Margen (m) que se añade a la caja de cada criatura al buscar golpes en vuelo. */
+	private static final float MARGEN_GOLPE = 0.3f;
 
 	public ProyectilEntity(EntityType<? extends ProyectilEntity> tipo, World mundo) {
 		super(tipo, mundo);
@@ -69,9 +80,11 @@ public class ProyectilEntity extends Entity implements FlyingItemEntity {
 	 * @param receptor        jugador que recibirá el informe, o {@code null}
 	 * @param informeCompacto verdadero para un resumen de una línea (disparos automáticos)
 	 * @param ticksRestos     ticks que la bala queda visible en el suelo tras el impacto
+	 * @param efectos         daño y explosión al impactar
 	 */
 	public void configurar(Lanzamiento lanzamiento, ModeloFuerzas modelo, @Nullable BlockPos canon,
-			@Nullable UUID receptor, boolean informeCompacto, int ticksRestos) {
+			@Nullable UUID receptor, boolean informeCompacto, int ticksRestos, EfectosImpacto efectos) {
+		this.efectos = efectos;
 		this.ideal = lanzamiento;
 		this.modelo = modelo;
 		this.estado = lanzamiento.estado(0);
@@ -117,8 +130,29 @@ public class ProyectilEntity extends Entity implements FlyingItemEntity {
 			return;
 		}
 		Optional<EstadoCinematico> impacto = Balistica.impactoEnTramo(mundo, estado, siguiente, this);
+		if (efectos.dano()) {
+			// Con daño activado, la bala choca también con las criaturas que encuentra en el tramo.
+			EntityHitResult golpe = buscarCriatura(mundo, estado, siguiente);
+			if (golpe != null) {
+				// El resultado da la posición de la criatura; el punto de contacto es donde el tramo
+				// entra en su caja (ampliada con el mismo margen que se usó para buscarla).
+				Vec3d desde = Balistica.aVec3d(estado.posicion());
+				Vec3d hasta = Balistica.aVec3d(siguiente.posicion());
+				double longitud = desde.distanceTo(hasta);
+				Vec3d contacto = golpe.getEntity().getBoundingBox().expand(MARGEN_GOLPE).raycast(desde, hasta)
+						.orElse(desde);
+				double fGolpe = longitud > 0 ? desde.distanceTo(contacto) / longitud : 0;
+				double fBloque = impacto
+						.map(i -> (i.tiempo() - estado.tiempo()) / (siguiente.tiempo() - estado.tiempo()))
+						.orElse(Double.POSITIVE_INFINITY);
+				if (fGolpe <= fBloque) {
+					terminarConImpacto(mundo, estado.interpola(siguiente, Math.min(1, fGolpe)), golpe.getEntity());
+					return;
+				}
+			}
+		}
 		if (impacto.isPresent()) {
-			terminarConImpacto(mundo, impacto.get());
+			terminarConImpacto(mundo, impacto.get(), null);
 			return;
 		}
 
@@ -141,7 +175,42 @@ public class ProyectilEntity extends Entity implements FlyingItemEntity {
 		setVelocity(v.x() * Constantes.DT_TICK, v.y() * Constantes.DT_TICK, v.z() * Constantes.DT_TICK);
 	}
 
-	private void terminarConImpacto(ServerWorld mundo, EstadoCinematico impacto) {
+	/** Primera criatura viva que la bala atraviesa en el tramo entre dos estados, o {@code null}. */
+	@Nullable
+	private EntityHitResult buscarCriatura(ServerWorld mundo, EstadoCinematico a, EstadoCinematico b) {
+		Vec3d desde = Balistica.aVec3d(a.posicion());
+		Vec3d hasta = Balistica.aVec3d(b.posicion());
+		Box zona = new Box(desde, hasta).expand(1.0);
+		return ProjectileUtil.getEntityCollision(mundo, this, desde, hasta, zona,
+				e -> e instanceof LivingEntity && e.isAlive() && !e.isSpectator(), MARGEN_GOLPE);
+	}
+
+	/**
+	 * Mata a la criatura golpeada en vuelo y a todas las que estén donde cae la bala (dentro de un
+	 * bloque alrededor del punto de impacto).
+	 *
+	 * @return cuántas criaturas ha matado
+	 */
+	private int aplicarDano(ServerWorld mundo, Vector3 p, @Nullable Entity golpeada) {
+		ServerPlayerEntity atacante = jugadorReceptor(mundo);
+		DamageSource fuente = mundo.getDamageSources().thrown(this, atacante);
+		Box zona = new Box(p.x() - 1, p.y() - 1, p.z() - 1, p.x() + 1, p.y() + 1.5, p.z() + 1);
+		var victimas = new java.util.ArrayList<LivingEntity>(
+				mundo.getEntitiesByClass(LivingEntity.class, zona, e -> e.isAlive() && !e.isSpectator()));
+		if (golpeada instanceof LivingEntity viva && !victimas.contains(viva)) {
+			victimas.add(viva);
+		}
+		int muertas = 0;
+		for (LivingEntity victima : victimas) {
+			victima.damage(fuente, DANO_LETAL);
+			if (!victima.isAlive()) {
+				muertas++;
+			}
+		}
+		return muertas;
+	}
+
+	private void terminarConImpacto(ServerWorld mundo, EstadoCinematico impacto, @Nullable Entity golpeada) {
 		Vector3 p = impacto.posicion();
 		alturaMaxima = Math.max(alturaMaxima, p.y());
 		InformeDisparo informe = InformeDisparo.comparar(ideal, impacto, alturaMaxima);
@@ -162,6 +231,17 @@ public class ProyectilEntity extends Entity implements FlyingItemEntity {
 		Balistica.particulasLejanas(mundo, ParticleTypes.FLAME, p.x(), p.y(), p.z(), 12, 0.1, 0.03);
 		mundo.playSound(null, BlockPos.ofFloored(new Vec3d(p.x(), p.y(), p.z())),
 				SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.BLOCKS, 0.8f, 1.2f);
+
+		if (efectos.dano()) {
+			int muertas = aplicarDano(mundo, p, golpeada);
+			if (muertas > 0 && jugador != null && !informeCompacto) {
+				Mensajes.enviarBajas(jugador, muertas);
+			}
+		}
+		if (efectos.explota()) {
+			mundo.createExplosion(this, p.x(), p.y(), p.z(), efectos.potenciaExplosion(),
+					efectos.romperBloques() ? World.ExplosionSourceType.TNT : World.ExplosionSourceType.NONE);
+		}
 
 		if (ticksRestos <= 0) {
 			discard();

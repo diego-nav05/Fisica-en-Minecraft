@@ -11,7 +11,7 @@ Lo siguiente serían las «Ideas para más adelante» del roadmap.
 | Comprobación | Comando | Resultado |
 | --- | --- | --- |
 | Compilación + tests JUnit de física | `./gradlew build` | 51 tests en verde |
-| Pruebas dentro del juego (servidor) | `./gradlew runGametest` | 20 pruebas en verde |
+| Pruebas dentro del juego (servidor) | `./gradlew runGametest` | 26 pruebas en verde |
 
 **Sin verificar:** la parte visual en un cliente real (aspecto del bloque, proyectil en vuelo,
 partículas, textos del chat). El código de cliente compila contra Minecraft 1.21.1, pero el
@@ -70,13 +70,19 @@ entorno donde se desarrolló no puede abrir el juego. Hay que probarlo con `./gr
 - **5.5 Pruebas**: 6 pruebas nuevas en el juego (bucle, restos, control a distancia, guardado,
   «todos» por comando y por redstone). Las de «todos» van en lotes propios porque afectan a
   todos los cañones cargados.
+- **5.6 Daño y explosión** (opcionales, desactivados por defecto): `/canon daño si|no` mata a
+  la criatura que la bala golpea en vuelo y a las que están donde cae (radio de 1 bloque);
+  `/canon explosion <potencia> [romper|sin_romper]` crea una explosión en el impacto.
+  6 pruebas más en el juego (26 en total); las de explosión van en lotes propios.
 
 ## Decisiones y notas
 
 - El `ROADMAP.md` original no estaba en el repositorio; el plan se redactó desde cero.
 - Los mensajes del chat y los comandos están en español de forma fija (no dependen del idioma
   del cliente); los nombres del bloque y de los objetos sí están traducidos.
-- El proyectil no daña entidades ni rompe bloques: es un instrumento de medida.
+- Por defecto el proyectil no daña entidades ni rompe bloques: es un instrumento de medida. El
+  daño y la explosión hay que activarlos en cada cañón.
+- Con daño activado, el punto de impacto del informe es donde la bala toca a la criatura.
 - Fallos encontrados por las pruebas dentro del juego y corregidos: el azimut inicial de un
   cañón orientado al este salía 270° en lugar de −90°.
 - La selección de cañón de cada jugador no se guarda al cerrar el servidor; la cadencia, los

@@ -481,4 +481,96 @@ public class CanonGameTest implements FabricGameTest {
 			ctx.complete();
 		});
 	}
+
+	// --- Daño y explosión ---
+
+	/** Punto de la cara superior del suelo, en diagonal respecto al cañón. */
+	private static final Vec3d OBJETIVO_SUELO = new Vec3d(6.5, 2.0, 6.5);
+
+	private static CanonBlockEntity canonApuntadoAlSuelo(TestContext ctx) {
+		CanonBlockEntity canon = montarEscenario(ctx);
+		canon.setRapidez(9);
+		canon.setRestos(0);
+		ctx.assertTrue(canon.apuntarA(ctx.getAbsolute(OBJETIVO_SUELO), true).isPresent(), "El objetivo debería estar a tiro");
+		return canon;
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+	public void conDanoMuereLaCriaturaDondeCae(TestContext ctx) {
+		CanonBlockEntity canon = canonApuntadoAlSuelo(ctx);
+		canon.setDano(true);
+		var cerdo = ctx.spawnMob(net.minecraft.entity.EntityType.PIG, OBJETIVO_SUELO);
+		canon.disparar(ctx.getWorld(), null);
+		alImpactar(ctx, canon, informe -> ctx.assertTrue(!cerdo.isAlive(), "El cerdo debería haber muerto"));
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+	public void sinDanoLaCriaturaSobrevive(TestContext ctx) {
+		CanonBlockEntity canon = canonApuntadoAlSuelo(ctx);
+		var cerdo = ctx.spawnMob(net.minecraft.entity.EntityType.PIG, OBJETIVO_SUELO);
+		canon.disparar(ctx.getWorld(), null);
+		alImpactar(ctx, canon, informe -> {
+			ctx.assertTrue(cerdo.isAlive() && cerdo.getHealth() == cerdo.getMaxHealth(),
+					"Sin daño, el cerdo no debe sufrir nada");
+			// La bala lo atraviesa y llega al suelo, como un instrumento de medida.
+			comprobar(ctx, "altura del impacto", ctx.getAbsolute(OBJETIVO_SUELO).y, informe.puntoDeImpacto().y(), 1e-6);
+		});
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 100)
+	public void conDanoGolpeaEnPlenoVuelo(TestContext ctx) {
+		CanonBlockEntity canon = montarEscenario(ctx);
+		canon.setRapidez(20);
+		canon.setElevacion(0);
+		canon.setRestos(0);
+		canon.setDano(true);
+		// Un cerdo subido a un bloque, a la altura de la boca y en la línea de tiro.
+		ctx.setBlockState(5, 2, 3, Blocks.STONE);
+		var cerdo = ctx.spawnMob(net.minecraft.entity.EntityType.PIG, new Vec3d(5.5, 3.0, 3.5));
+		double xBloque = ctx.getAbsolutePos(new BlockPos(5, 2, 3)).getX();
+		canon.disparar(ctx.getWorld(), null);
+		alImpactar(ctx, canon, informe -> {
+			ctx.assertTrue(!cerdo.isAlive(), "El cerdo alcanzado en vuelo debería haber muerto");
+			ctx.assertTrue(informe.puntoDeImpacto().x() < xBloque + 0.5,
+					"La bala debe detenerse en el cerdo: x = " + informe.puntoDeImpacto().x());
+		});
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 100)
+	public void elDanoYLaExplosionSeGuardanConElMundo(TestContext ctx) {
+		CanonBlockEntity canon = montarEscenario(ctx);
+		canon.setDano(true);
+		canon.setExplosion(3.5, false);
+		var registros = ctx.getWorld().getRegistryManager();
+		CanonBlockEntity copia = new CanonBlockEntity(canon.getPos(), canon.getCachedState());
+		copia.read(canon.createNbt(registros), registros);
+		ctx.assertTrue(copia.isDano(), "Debe guardarse el daño");
+		comprobar(ctx, "potencia", 3.5, copia.getPotenciaExplosion(), 1e-6);
+		ctx.assertTrue(!copia.isRomperBloques(), "Debe guardarse «sin romper»");
+		ctx.complete();
+	}
+
+	// Las explosiones van en lotes propios para que la onda no alcance a otras pruebas.
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "explosion_romper")
+	public void laExplosionRompeElSuelo(TestContext ctx) {
+		CanonBlockEntity canon = canonApuntadoAlSuelo(ctx);
+		canon.setExplosion(4, true);
+		canon.disparar(ctx.getWorld(), null);
+		alImpactar(ctx, canon, informe -> ctx.assertTrue(ctx.getBlockState(new BlockPos(6, 1, 6)).isAir(),
+				"La explosión debería haber roto el suelo donde cae"));
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "explosion_sin_romper")
+	public void laExplosionSinRomperHiereSinRomperBloques(TestContext ctx) {
+		CanonBlockEntity canon = canonApuntadoAlSuelo(ctx);
+		canon.setExplosion(4, false);
+		var cerdo = ctx.spawnMob(net.minecraft.entity.EntityType.PIG, new Vec3d(6.5, 2.0, 5.0));
+		canon.disparar(ctx.getWorld(), null);
+		alImpactar(ctx, canon, informe -> {
+			ctx.assertTrue(ctx.getBlockState(new BlockPos(6, 1, 6)).isOf(Blocks.STONE), "El suelo debe seguir intacto");
+			ctx.assertTrue(!cerdo.isAlive() || cerdo.getHealth() < cerdo.getMaxHealth(),
+					"La explosión debería haber herido al cerdo cercano");
+		});
+	}
 }

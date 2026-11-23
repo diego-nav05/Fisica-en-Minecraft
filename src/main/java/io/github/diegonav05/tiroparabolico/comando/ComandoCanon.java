@@ -148,6 +148,25 @@ public final class ComandoCanon {
 					canon.setRedstoneTodos(false);
 					return Text.literal("La señal de redstone de este cañón solo lo dispara a él.");
 				}))));
+		// «daño» y «dano» (por si el teclado no tiene ñ).
+		for (String palabra : new String[] {"daño", "dano"}) {
+			nodo.then(literal(palabra)
+					.then(literal("si").executes(ctx -> ejecutar(ctx, todos, (c, canon, jugador) -> {
+						canon.setDano(true);
+						return Text.literal("Daño activado: la bala mata lo que golpea y lo que hay donde cae.");
+					})))
+					.then(literal("no").executes(ctx -> ejecutar(ctx, todos, (c, canon, jugador) -> {
+						canon.setDano(false);
+						return Text.literal("Daño desactivado: la bala atraviesa a las criaturas sin herirlas.");
+					}))));
+		}
+		nodo.then(literal("explosion").then(argument("potencia",
+				DoubleArgumentType.doubleArg(0, CanonBlockEntity.POTENCIA_MAX))
+				.executes(ctx -> ejecutar(ctx, todos, (c, canon, jugador) -> fijarExplosion(c, canon, true)))
+				.then(literal("romper").executes(
+						ctx -> ejecutar(ctx, todos, (c, canon, jugador) -> fijarExplosion(c, canon, true))))
+				.then(literal("sin_romper").executes(
+						ctx -> ejecutar(ctx, todos, (c, canon, jugador) -> fijarExplosion(c, canon, false))))));
 		nodo.then(literal("apuntar").executes(ctx -> ejecutar(ctx, todos, (c, canon, jugador) -> {
 			canon.apuntarComo(jugador.getYaw(), jugador.getPitch());
 			return Text.literal("Cañón orientado como tu mirada: elevación " + Mensajes.num(canon.getElevacion(), 1)
@@ -254,6 +273,15 @@ public final class ComandoCanon {
 	private static Text textoSeleccion(CanonBlockEntity canon) {
 		return Text.literal("Cañón en " + Mensajes.coordenadas(canon.getPos())
 				+ " seleccionado: /canon lo manejará desde cualquier distancia (salvo que mires otro).");
+	}
+
+	private static Text fijarExplosion(CommandContext<ServerCommandSource> ctx, CanonBlockEntity canon, boolean romper) {
+		canon.setExplosion(DoubleArgumentType.getDouble(ctx, "potencia"), romper);
+		if (canon.getPotenciaExplosion() <= 0) {
+			return Text.literal("Explosión desactivada.");
+		}
+		return Text.literal("Al impactar habrá una explosión de potencia " + Mensajes.num(canon.getPotenciaExplosion(), 1)
+				+ " (la dinamita es 4)" + (romper ? " que rompe bloques." : " sin romper bloques."));
 	}
 
 	private static Text fijarGravedad(CanonBlockEntity canon, double g, String nombre) {
