@@ -181,6 +181,7 @@ public class CanonGameTest implements FabricGameTest {
 	public void laRedstoneDisparaElCanon(TestContext ctx) {
 		CanonBlockEntity canon = montarEscenario(ctx);
 		canon.setRapidez(5);
+		canon.setCadencia(0);
 		ctx.assertTrue(canon.disparos() == 0, "El cañón no debería haber disparado todavía");
 		ctx.setBlockState(CANON.north(), Blocks.REDSTONE_BLOCK);
 		ctx.runAtTick(2, () -> {
@@ -203,7 +204,7 @@ public class CanonGameTest implements FabricGameTest {
 		long inicio = ctx.getTick();
 		for (int n = 1; n <= 15; n++) {
 			ctx.runAtTick(inicio + n, () -> {
-				if (proyectil.isRemoved()) {
+				if (proyectil.isRemoved() || proyectil.aterrizado()) {
 					return;
 				}
 				double t = proyectil.estado().orElseThrow().tiempo();
@@ -221,6 +222,11 @@ public class CanonGameTest implements FabricGameTest {
 		Vec3d pos = ctx.getAbsolute(new Vec3d(1.5, 2.0, 1.5));
 		jugador.refreshPositionAndAngles(pos.x, pos.y, pos.z, -90f, -30f);
 		return jugador;
+	}
+
+	/** Coordenadas para un comando, sin notación científica (las pruebas pueden estar muy lejos del origen). */
+	private static String coords(Vec3d v) {
+		return String.format(java.util.Locale.ROOT, "%.3f %.3f %.3f", v.x, v.y, v.z);
 	}
 
 	private static void retirar(TestContext ctx, ServerPlayerEntity jugador) {
@@ -263,9 +269,9 @@ public class CanonGameTest implements FabricGameTest {
 					"Tras apuntar al este el bloque debe mirar al este");
 
 			Vec3d objetivo = ctx.getAbsolute(new Vec3d(6.5, 2.0, 3.5));
-			comando(ctx, jugador, "canon objetivo " + objetivo.x + " " + objetivo.y + " " + objetivo.z + " alto");
+			comando(ctx, jugador, "canon objetivo " + coords(objetivo) + " alto");
 			ctx.assertTrue(canon.getElevacion() > 45, "El tiro por elevación usa el ángulo alto: " + canon.getElevacion());
-			comando(ctx, jugador, "canon objetivo " + objetivo.x + " " + objetivo.y + " " + objetivo.z);
+			comando(ctx, jugador, "canon objetivo " + coords(objetivo));
 			ctx.assertTrue(canon.getElevacion() < 45, "El tiro tenso usa el ángulo bajo: " + canon.getElevacion());
 			comando(ctx, jugador, "canon prever");
 			comando(ctx, jugador, "canon disparar");
@@ -341,5 +347,230 @@ public class CanonGameTest implements FabricGameTest {
 		ctx.assertTrue(botin.size() == 1 && botin.get(0).isOf(ModContenido.CANON_OBJETO),
 				"Al romper el cañón debe soltarse a sí mismo: " + botin);
 		ctx.complete();
+	}
+
+	// --- Mejoras: bucle con redstone, restos en el suelo, control a distancia y «todos» ---
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 120)
+	public void laRedstoneMantenidaDisparaEnBucle(TestContext ctx) {
+		CanonBlockEntity canon = montarEscenario(ctx);
+		canon.setRapidez(4);
+		canon.setCadencia(0.5);
+		canon.setRestos(0);
+		ctx.setBlockState(CANON.north(), Blocks.REDSTONE_BLOCK);
+		// Dispara al recibir la señal y luego cada 10 ticks: en t = 0, 10, 20 y 30.
+		ctx.waitAndRun(35, () -> {
+			ctx.assertTrue(canon.disparos() == 4, "Con cadencia 0,5 s debe llevar 4 disparos: " + canon.disparos());
+			ctx.setBlockState(CANON.north(), Blocks.AIR);
+		});
+		ctx.waitAndRun(70, () -> {
+			ctx.assertTrue(canon.disparos() == 4, "Sin señal debe dejar de disparar: " + canon.disparos());
+			ctx.complete();
+		});
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 140)
+	public void laBalaQuedaEnElSueloUnRato(TestContext ctx) {
+		CanonBlockEntity canon = montarEscenario(ctx);
+		canon.setRapidez(5);
+		canon.setElevacion(45);
+		canon.setRestos(2);
+		ProyectilEntity proyectil = canon.disparar(ctx.getWorld(), null);
+		// El vuelo dura unos 21 ticks; los restos, 40 más.
+		ctx.waitAndRun(35, () -> {
+			ctx.assertTrue(canon.ultimoInforme().isPresent(), "El proyectil ya debería haber impactado");
+			ctx.assertTrue(!proyectil.isRemoved(), "La bala debe seguir en el suelo tras el impacto");
+			ctx.assertTrue(proyectil.aterrizado() && proyectil.isGlowing(), "La bala en el suelo debe brillar");
+			var impacto = canon.ultimoInforme().get().puntoDeImpacto();
+			double distancia = Math.sqrt(proyectil.squaredDistanceTo(impacto.x(), impacto.y(), impacto.z()));
+			ctx.assertTrue(distancia < 1e-6, "La bala debe quedarse en el punto de impacto: " + distancia);
+		});
+		ctx.waitAndRun(75, () -> {
+			ctx.assertTrue(proyectil.isRemoved(), "Pasado el tiempo de restos la bala debe desaparecer");
+			ctx.complete();
+		});
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 100)
+	public void unCanonSeleccionadoSeManejaDesdeLejos(TestContext ctx) {
+		CanonBlockEntity canon = montarEscenario(ctx);
+		ServerPlayerEntity jugador = jugadorJuntoAlCanon(ctx);
+		try {
+			BlockPos pos = ctx.getAbsolutePos(CANON);
+			comando(ctx, jugador, "canon lista");
+			comando(ctx, jugador, "canon seleccionar " + pos.getX() + " " + pos.getY() + " " + pos.getZ());
+			// Lejos del cañón (más allá del radio de búsqueda) y mirando al cielo.
+			Vec3d lejos = ctx.getAbsolute(new Vec3d(1.5, 2.0, 400.5));
+			jugador.refreshPositionAndAngles(lejos.x, lejos.y, lejos.z, 0f, -90f);
+			comando(ctx, jugador, "canon velocidad 33");
+			comando(ctx, jugador, "canon cadencia 1.5");
+			comando(ctx, jugador, "canon restos 25");
+			comando(ctx, jugador, "canon redstone todos");
+			comprobar(ctx, "rapidez", 33, canon.getRapidez(), 0);
+			comprobar(ctx, "cadencia", 1.5, canon.getCadencia(), 0);
+			comprobar(ctx, "restos", 25, canon.getRestos(), 0);
+			ctx.assertTrue(canon.isRedstoneTodos(), "El modo «redstone todos» debe quedar activado");
+			comando(ctx, jugador, "canon redstone solo");
+			ctx.assertTrue(!canon.isRedstoneTodos(), "El modo «redstone solo» debe quedar activado");
+			comando(ctx, jugador, "canon cadencia 0");
+			comprobar(ctx, "cadencia desactivada", 0, canon.getCadencia(), 0);
+		} finally {
+			retirar(ctx, jugador);
+		}
+		ctx.complete();
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 100)
+	public void laCadenciaYLosRestosSeGuardanConElMundo(TestContext ctx) {
+		CanonBlockEntity canon = montarEscenario(ctx);
+		canon.setCadencia(3.5);
+		canon.setRestos(42);
+		canon.setRedstoneTodos(true);
+		var registros = ctx.getWorld().getRegistryManager();
+		CanonBlockEntity copia = new CanonBlockEntity(canon.getPos(), canon.getCachedState());
+		copia.read(canon.createNbt(registros), registros);
+		comprobar(ctx, "cadencia", 3.5, copia.getCadencia(), 0);
+		comprobar(ctx, "restos", 42, copia.getRestos(), 0);
+		ctx.assertTrue(copia.isRedstoneTodos(), "Debe guardarse el modo «redstone todos»");
+		ctx.complete();
+	}
+
+	/** Segundo cañón del escenario, en el otro lado del suelo. */
+	private static final BlockPos CANON_2 = new BlockPos(1, 2, 6);
+
+	private static CanonBlockEntity segundoCanon(TestContext ctx) {
+		ctx.setBlockState(CANON_2, ModContenido.CANON.getDefaultState().with(CanonBlock.FACING, Direction.EAST));
+		return ctx.getBlockEntity(CANON_2);
+	}
+
+	// «todos» afecta a todos los cañones cargados: cada prueba va en su propio lote para no
+	// interferir con las demás pruebas, que se ejecutan a la vez.
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 100, batchId = "todos_comando")
+	public void todosLosCanonesObedecenAlComando(TestContext ctx) {
+		CanonBlockEntity a = montarEscenario(ctx);
+		CanonBlockEntity b = segundoCanon(ctx);
+		ServerPlayerEntity jugador = jugadorJuntoAlCanon(ctx);
+		try {
+			comando(ctx, jugador, "canon todos velocidad 4");
+			comando(ctx, jugador, "canon todos angulo 30");
+			comprobar(ctx, "rapidez del cañón A", 4, a.getRapidez(), 0);
+			comprobar(ctx, "rapidez del cañón B", 4, b.getRapidez(), 0);
+			comprobar(ctx, "ángulo del cañón B", 30, b.getElevacion(), 0);
+			comando(ctx, jugador, "canon todos disparar");
+			ctx.assertTrue(a.disparos() == 1 && b.disparos() == 1,
+					"Los dos cañones deben disparar: " + a.disparos() + " y " + b.disparos());
+		} finally {
+			retirar(ctx, jugador);
+		}
+		ctx.complete();
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 100, batchId = "todos_redstone")
+	public void laRedstoneDeUnCanonPuedeDispararlosTodos(TestContext ctx) {
+		CanonBlockEntity maestro = montarEscenario(ctx);
+		CanonBlockEntity otro = segundoCanon(ctx);
+		maestro.setRapidez(4);
+		otro.setRapidez(4);
+		maestro.setCadencia(0);
+		maestro.setRedstoneTodos(true);
+		ctx.setBlockState(CANON.north(), Blocks.REDSTONE_BLOCK);
+		ctx.waitAndRun(2, () -> {
+			ctx.assertTrue(maestro.disparos() == 1, "El cañón con señal debe disparar: " + maestro.disparos());
+			ctx.assertTrue(otro.disparos() == 1, "El otro cañón también debe disparar: " + otro.disparos());
+			ctx.complete();
+		});
+	}
+
+	// --- Daño y explosión ---
+
+	/** Punto de la cara superior del suelo, en diagonal respecto al cañón. */
+	private static final Vec3d OBJETIVO_SUELO = new Vec3d(6.5, 2.0, 6.5);
+
+	private static CanonBlockEntity canonApuntadoAlSuelo(TestContext ctx) {
+		CanonBlockEntity canon = montarEscenario(ctx);
+		canon.setRapidez(9);
+		canon.setRestos(0);
+		ctx.assertTrue(canon.apuntarA(ctx.getAbsolute(OBJETIVO_SUELO), true).isPresent(), "El objetivo debería estar a tiro");
+		return canon;
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+	public void conDanoMuereLaCriaturaDondeCae(TestContext ctx) {
+		CanonBlockEntity canon = canonApuntadoAlSuelo(ctx);
+		canon.setDano(true);
+		var cerdo = ctx.spawnMob(net.minecraft.entity.EntityType.PIG, OBJETIVO_SUELO);
+		canon.disparar(ctx.getWorld(), null);
+		alImpactar(ctx, canon, informe -> ctx.assertTrue(!cerdo.isAlive(), "El cerdo debería haber muerto"));
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+	public void sinDanoLaCriaturaSobrevive(TestContext ctx) {
+		CanonBlockEntity canon = canonApuntadoAlSuelo(ctx);
+		var cerdo = ctx.spawnMob(net.minecraft.entity.EntityType.PIG, OBJETIVO_SUELO);
+		canon.disparar(ctx.getWorld(), null);
+		alImpactar(ctx, canon, informe -> {
+			ctx.assertTrue(cerdo.isAlive() && cerdo.getHealth() == cerdo.getMaxHealth(),
+					"Sin daño, el cerdo no debe sufrir nada");
+			// La bala lo atraviesa y llega al suelo, como un instrumento de medida.
+			comprobar(ctx, "altura del impacto", ctx.getAbsolute(OBJETIVO_SUELO).y, informe.puntoDeImpacto().y(), 1e-6);
+		});
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 100)
+	public void conDanoGolpeaEnPlenoVuelo(TestContext ctx) {
+		CanonBlockEntity canon = montarEscenario(ctx);
+		canon.setRapidez(20);
+		canon.setElevacion(0);
+		canon.setRestos(0);
+		canon.setDano(true);
+		// Un cerdo subido a un bloque, a la altura de la boca y en la línea de tiro.
+		ctx.setBlockState(5, 2, 3, Blocks.STONE);
+		var cerdo = ctx.spawnMob(net.minecraft.entity.EntityType.PIG, new Vec3d(5.5, 3.0, 3.5));
+		double xBloque = ctx.getAbsolutePos(new BlockPos(5, 2, 3)).getX();
+		canon.disparar(ctx.getWorld(), null);
+		alImpactar(ctx, canon, informe -> {
+			ctx.assertTrue(!cerdo.isAlive(), "El cerdo alcanzado en vuelo debería haber muerto");
+			ctx.assertTrue(informe.puntoDeImpacto().x() < xBloque + 0.5,
+					"La bala debe detenerse en el cerdo: x = " + informe.puntoDeImpacto().x());
+		});
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 100)
+	public void elDanoYLaExplosionSeGuardanConElMundo(TestContext ctx) {
+		CanonBlockEntity canon = montarEscenario(ctx);
+		canon.setDano(true);
+		canon.setExplosion(3.5, false);
+		var registros = ctx.getWorld().getRegistryManager();
+		CanonBlockEntity copia = new CanonBlockEntity(canon.getPos(), canon.getCachedState());
+		copia.read(canon.createNbt(registros), registros);
+		ctx.assertTrue(copia.isDano(), "Debe guardarse el daño");
+		comprobar(ctx, "potencia", 3.5, copia.getPotenciaExplosion(), 1e-6);
+		ctx.assertTrue(!copia.isRomperBloques(), "Debe guardarse «sin romper»");
+		ctx.complete();
+	}
+
+	// Las explosiones van en lotes propios para que la onda no alcance a otras pruebas.
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "explosion_romper")
+	public void laExplosionRompeElSuelo(TestContext ctx) {
+		CanonBlockEntity canon = canonApuntadoAlSuelo(ctx);
+		canon.setExplosion(4, true);
+		canon.disparar(ctx.getWorld(), null);
+		alImpactar(ctx, canon, informe -> ctx.assertTrue(ctx.getBlockState(new BlockPos(6, 1, 6)).isAir(),
+				"La explosión debería haber roto el suelo donde cae"));
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "explosion_sin_romper")
+	public void laExplosionSinRomperHiereSinRomperBloques(TestContext ctx) {
+		CanonBlockEntity canon = canonApuntadoAlSuelo(ctx);
+		canon.setExplosion(4, false);
+		var cerdo = ctx.spawnMob(net.minecraft.entity.EntityType.PIG, new Vec3d(6.5, 2.0, 5.0));
+		canon.disparar(ctx.getWorld(), null);
+		alImpactar(ctx, canon, informe -> {
+			ctx.assertTrue(ctx.getBlockState(new BlockPos(6, 1, 6)).isOf(Blocks.STONE), "El suelo debe seguir intacto");
+			ctx.assertTrue(!cerdo.isAlive() || cerdo.getHealth() < cerdo.getMaxHealth(),
+					"La explosión debería haber herido al cerdo cercano");
+		});
 	}
 }

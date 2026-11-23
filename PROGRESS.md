@@ -2,7 +2,7 @@
 
 Estado del proyecto respecto a `ROADMAP.md`. Se actualiza al terminar cada hito.
 
-## Fase actual: todas las fases del roadmap (0 – 4) están completadas
+## Fase actual: fases 0 – 5 completadas
 
 Lo siguiente serían las «Ideas para más adelante» del roadmap.
 
@@ -11,11 +11,22 @@ Lo siguiente serían las «Ideas para más adelante» del roadmap.
 | Comprobación | Comando | Resultado |
 | --- | --- | --- |
 | Compilación + tests JUnit de física | `./gradlew build` | 51 tests en verde |
-| Pruebas dentro del juego (servidor) | `./gradlew runGametest` | 14 pruebas en verde |
+| Pruebas dentro del juego (servidor) | `./gradlew runGametest` | 26 pruebas en verde |
 
-**Sin verificar:** la parte visual en un cliente real (aspecto del bloque, proyectil en vuelo,
-partículas, textos del chat). El código de cliente compila contra Minecraft 1.21.1, pero el
-entorno donde se desarrolló no puede abrir el juego. Hay que probarlo con `./gradlew runClient`.
+| Prueba manual en un cliente real (macOS, Prism Launcher) | Jugando | Todo funciona, confirmado por el grupo |
+
+## Entregables
+
+| Entregable | Dónde |
+| --- | --- |
+| Mod compilado | `descargas/tiro-parabolico-1.0.0.jar` |
+| Código y documentación | Este repositorio (`README.md`, `ROADMAP.md`, `PROGRESS.md`) |
+| Presentación (16 diapositivas) | Artifact de Slides «Tiro parabólico en Minecraft» |
+| Informe escrito | Documento «Informe · Tiro parabólico en Minecraft» |
+
+Pendiente del grupo: nombres y fecha, una captura del juego, las medidas «En el juego» de la
+tabla de ángulos y la comparación con PhET (huecos marcados con corchetes en la presentación y
+el informe).
 
 ## Hitos completados
 
@@ -54,13 +65,38 @@ entorno donde se desarrolló no puede abrir el juego. Hay que probarlo con `./gr
   menos de 2 cm y 5 ms de error en tiros a 0°, 45° y 75°, y con gravedad lunar.
 - **4.2 README** con uso, física, estructura y prácticas propuestas.
 
+### Fase 5 — Mejoras para la demostración
+
+- **5.1 Control a distancia**: `/canon seleccionar` (mirada o coordenadas) y `/canon lista`
+  (pulsable). La mirada alcanza 160 bloques y el cañón seleccionado responde a cualquier
+  distancia. Registro de cañones cargados (`RegistroCanones`). Partículas forzadas, visibles
+  hasta 512 bloques.
+- **5.2 Bucle con redstone**: con la señal mantenida dispara cada `cadencia` segundos (2 s por
+  defecto; 0 = un disparo por pulso). Los disparos automáticos envían un resumen de una línea
+  a la barra de acción del último jugador que manejó el cañón.
+- **5.3 Todos los cañones**: `/canon todos <comando>` y modo `/canon redstone todos`, en el que
+  la señal de un cañón dispara todos los cañones cargados.
+- **5.4 Restos en el suelo**: la bala queda brillando en el punto de impacto `restos` segundos
+  (10 por defecto) antes de desaparecer.
+- **5.5 Pruebas**: 6 pruebas nuevas en el juego (bucle, restos, control a distancia, guardado,
+  «todos» por comando y por redstone). Las de «todos» van en lotes propios porque afectan a
+  todos los cañones cargados.
+- **5.6 Daño y explosión** (opcionales, desactivados por defecto): `/canon daño si|no` mata a
+  la criatura que la bala golpea en vuelo y a las que están donde cae (radio de 1 bloque);
+  `/canon explosion <potencia> [romper|sin_romper]` crea una explosión en el impacto.
+  6 pruebas más en el juego (26 en total); las de explosión van en lotes propios.
+
 ## Decisiones y notas
 
 - El `ROADMAP.md` original no estaba en el repositorio; el plan se redactó desde cero.
 - Los mensajes del chat y los comandos están en español de forma fija (no dependen del idioma
   del cliente); los nombres del bloque y de los objetos sí están traducidos.
-- El proyectil no daña entidades ni rompe bloques: es un instrumento de medida.
+- Por defecto el proyectil no daña entidades ni rompe bloques: es un instrumento de medida. El
+  daño y la explosión hay que activarlos en cada cañón.
+- Con daño activado, el punto de impacto del informe es donde la bala toca a la criatura.
 - Fallos encontrados por las pruebas dentro del juego y corregidos: el azimut inicial de un
   cañón orientado al este salía 270° en lugar de −90°.
+- La selección de cañón de cada jugador no se guarda al cerrar el servidor; la cadencia, los
+  restos y el modo de redstone sí se guardan con cada cañón.
 - Caso límite conocido: si el proyectil llega a la cara de un bloque justo al acabar un tick,
   Minecraft sitúa el choque hasta 0,5 mm dentro del bloque.

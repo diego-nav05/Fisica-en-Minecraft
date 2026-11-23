@@ -43,12 +43,25 @@ medido en el mundo con lo que predice la teoría.
 
 2. Colócalo: apunta hacia donde estés mirando.
 3. **Clic derecho** → dispara. **Agachado + clic derecho con la mano vacía** → muestra la
-   configuración y las predicciones. Una **señal de redstone** también lo dispara.
-4. Ajusta el cañón con `/canon` (actúa sobre el cañón al que miras o, si no, el más cercano
-   en 8 bloques):
+   configuración y las predicciones, y selecciona el cañón para manejarlo desde lejos.
+4. **Redstone**: al recibir señal dispara y, mientras la mantenga, sigue disparando cada
+   2 s (configurable con `/canon cadencia`). Con una palanca tienes un bucle de disparos.
+5. Tras el impacto, la bala **se queda brillando en el suelo** 10 s (`/canon restos`) para que
+   se vea dónde cayó, también desde lejos. La estela y el impacto se ven hasta 512 bloques.
+6. Ajusta el cañón con `/canon`. Actúa sobre el cañón al que miras (hasta 160 bloques); si no
+   miras ninguno, sobre el que tengas **seleccionado** (a cualquier distancia); y si no, sobre
+   el más cercano (hasta 128 bloques). Con `/canon todos …` actúa sobre **todos** a la vez.
 
 | Comando | Efecto |
 | --- | --- |
+| `/canon lista` | Lista los cañones cargados; pulsa uno para seleccionarlo |
+| `/canon seleccionar [x y z]` | Selecciona el cañón que miras (o el de esas coordenadas) |
+| `/canon todos <comando>` | Aplica el comando a todos los cañones: `/canon todos disparar`, `/canon todos velocidad 25`… |
+| `/canon cadencia <s>` | Segundos entre disparos con la señal de redstone mantenida (0 = uno por pulso) |
+| `/canon redstone todos\|solo` | Si la señal de este cañón dispara todos los cañones o solo él |
+| `/canon restos <s>` | Segundos que la bala queda en el suelo tras el impacto (0 – 120) |
+| `/canon daño si\|no` | Con daño, la bala mata lo que golpea en vuelo y lo que hay donde cae (también `dano`) |
+| `/canon explosion <potencia> [romper\|sin_romper]` | Explosión al impactar (0 = ninguna, 4 = dinamita, máx. 10) |
 | `/canon` o `/canon info` | Configuración y predicción teórica |
 | `/canon velocidad <m/s>` | Rapidez inicial (0,5 – 100) |
 | `/canon angulo <grados>` | Ángulo de elevación (−90 – 90) |
@@ -128,7 +141,9 @@ Compila, ejecuta los tests JUnit de física y deja el mod en `build/libs/tiro-pa
 ```
 
 Arranca un servidor sin interfaz, coloca cañones reales, dispara y comprueba que el impacto
-coincide con la teoría (2 cm, 5 ms), además de los comandos, la redstone y el guardado.
+coincide con la teoría (2 cm, 5 ms), además de los comandos, la redstone (también en bucle y
+el modo «todos»), los restos en el suelo, el control a distancia, el daño, las explosiones y
+el guardado: 26 pruebas.
 
 ```bash
 ./gradlew runClient

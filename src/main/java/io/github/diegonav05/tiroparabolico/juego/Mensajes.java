@@ -1,9 +1,12 @@
 package io.github.diegonav05.tiroparabolico.juego;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.OptionalDouble;
 
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -80,11 +83,78 @@ public final class Mensajes {
 			t.append("\n").append(Text.literal("Con rozamiento el proyectil llegará menos lejos que esta predicción.")
 					.formatted(Formatting.YELLOW));
 		}
+		t.append("\n").append(Text.literal("Redstone:").formatted(Formatting.AQUA));
+		t.append("\n").append(dato("  Con señal mantenida:", canon.getCadencia() == 0
+				? "un disparo por pulso"
+				: "dispara cada " + num(canon.getCadencia(), 2) + " s"));
+		t.append("\n").append(dato("  Su señal activa:", canon.isRedstoneTodos() ? "todos los cañones" : "solo este cañón"));
+		t.append("\n").append(dato("  Restos en el suelo:", num(canon.getRestos(), 1) + " s"));
+		t.append("\n").append(Text.literal("Al impactar:").formatted(Formatting.AQUA));
+		t.append("\n").append(dato("  Daño:", canon.isDano() ? "sí (mata lo que golpea y lo que hay donde cae)" : "no"));
+		t.append("\n").append(dato("  Explosión:", canon.getPotenciaExplosion() <= 0
+				? "no"
+				: "potencia " + num(canon.getPotenciaExplosion(), 1)
+						+ (canon.isRomperBloques() ? ", rompe bloques" : ", sin romper bloques")));
 		return t;
 	}
 
 	public static void enviarFicha(ServerPlayerEntity jugador, CanonBlockEntity canon) {
 		jugador.sendMessage(ficha(canon));
+	}
+
+	/** Coordenadas de un bloque en texto: «x, y, z». */
+	public static String coordenadas(BlockPos pos) {
+		return pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
+	}
+
+	/**
+	 * Lista de cañones cargados. Cada línea se puede pulsar para seleccionar ese cañón y
+	 * manejarlo después desde cualquier distancia.
+	 */
+	public static Text lista(List<CanonBlockEntity> canones, ServerPlayerEntity jugador) {
+		MutableText t = titulo(canones.size() + (canones.size() == 1 ? " cañón cargado" : " cañones cargados"));
+		if (canones.isEmpty()) {
+			return t.append("\n").append(Text.literal("No hay cañones en las zonas cargadas de este mundo.")
+					.formatted(Formatting.GRAY));
+		}
+		int n = 1;
+		for (CanonBlockEntity canon : canones) {
+			BlockPos pos = canon.getPos();
+			double distancia = Math.sqrt(pos.toCenterPos().squaredDistanceTo(jugador.getPos()));
+			boolean elegido = RegistroCanones.esSeleccionado(jugador.getUuid(), canon);
+			String comando = "/canon seleccionar " + pos.getX() + " " + pos.getY() + " " + pos.getZ();
+			MutableText linea = Text.literal((elegido ? "▶ " : "  ") + "#" + n + "  " + coordenadas(pos))
+					.formatted(elegido ? Formatting.GREEN : Formatting.WHITE)
+					.append(Text.literal("  a " + num(distancia, 0) + " m · v0 " + num(canon.getRapidez(), 1)
+							+ " m/s · θ " + num(canon.getElevacion(), 1) + "°").formatted(Formatting.GRAY))
+					.styled(estilo -> estilo
+							.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, comando))
+							.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+									Text.literal("Pulsa para seleccionar este cañón"))));
+			t.append("\n").append(linea);
+			n++;
+		}
+		t.append("\n").append(Text.literal("Pulsa un cañón para seleccionarlo.").formatted(Formatting.DARK_GRAY));
+		return t;
+	}
+
+	/** Resumen de una línea de un disparo, para la barra de acción (disparos automáticos). */
+	public static Text informeCompacto(InformeDisparo informe) {
+		String texto = "Impacto · alcance " + num(informe.alcance().medido(), 2) + " m · tiempo "
+				+ num(informe.tiempo().medido(), 2) + " s";
+		if (informe.teoriaDisponible()) {
+			texto += " · error " + num(informe.alcance().errorRelativoPorcentaje(), 2) + " %";
+		}
+		return Text.literal(texto).formatted(Formatting.GOLD);
+	}
+
+	public static void enviarBajas(ServerPlayerEntity jugador, int muertas) {
+		jugador.sendMessage(Text.literal("La bala ha eliminado " + (muertas == 1 ? "a 1 criatura." : "a " + muertas
+				+ " criaturas.")).formatted(Formatting.RED));
+	}
+
+	public static void enviarInformeCompacto(ServerPlayerEntity jugador, InformeDisparo informe) {
+		jugador.sendMessage(informeCompacto(informe), true);
 	}
 
 	private static Text linea(String magnitud, Comparacion c, String unidad, int decimales, boolean hayTeoria) {

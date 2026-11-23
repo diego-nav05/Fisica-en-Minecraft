@@ -4,6 +4,8 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityTicker;
+import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -17,12 +19,16 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
 
 import io.github.diegonav05.tiroparabolico.juego.Mensajes;
+import io.github.diegonav05.tiroparabolico.juego.RegistroCanones;
+import io.github.diegonav05.tiroparabolico.registro.ModContenido;
 
 /**
  * Cañón de laboratorio. Clic derecho: dispara. Agachado y con la mano vacía: muestra la
- * configuración y las predicciones. También dispara al recibir una señal de redstone.
+ * configuración y las predicciones (y lo selecciona para manejarlo desde lejos). Con redstone
+ * dispara al recibir la señal y, si tiene cadencia, sigue disparando mientras la mantenga.
  */
 public class CanonBlock extends Block implements BlockEntityProvider {
 	public static final DirectionProperty FACING = Properties.HORIZONTAL_FACING;
@@ -50,10 +56,22 @@ public class CanonBlock extends Block implements BlockEntityProvider {
 	}
 
 	@Override
+	@Nullable
+	@SuppressWarnings("unchecked")
+	public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
+		if (world.isClient || type != ModContenido.CANON_ENTIDAD) {
+			return null;
+		}
+		return (BlockEntityTicker<T>) (BlockEntityTicker<CanonBlockEntity>) CanonBlockEntity::tickServidor;
+	}
+
+	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
 		if (world instanceof ServerWorld serverWorld && world.getBlockEntity(pos) instanceof CanonBlockEntity canon
 				&& player instanceof ServerPlayerEntity jugador) {
+			canon.setOperador(jugador.getUuid());
 			if (player.isSneaking()) {
+				RegistroCanones.seleccionar(jugador.getUuid(), canon);
 				Mensajes.enviarFicha(jugador, canon);
 			} else {
 				canon.disparar(serverWorld, jugador);
@@ -71,10 +89,10 @@ public class CanonBlock extends Block implements BlockEntityProvider {
 		boolean alimentado = world.isReceivingRedstonePower(pos);
 		if (alimentado != state.get(POWERED)) {
 			world.setBlockState(pos, state.with(POWERED, alimentado), Block.NOTIFY_ALL);
-			// Solo se dispara en el flanco de subida de la señal.
+			// En el flanco de subida dispara; mientras siga la señal, la cadencia hace el resto.
 			if (alimentado && world instanceof ServerWorld serverWorld
 					&& world.getBlockEntity(pos) instanceof CanonBlockEntity canon) {
-				canon.disparar(serverWorld, null);
+				canon.alActivarseRedstone(serverWorld);
 			}
 		}
 	}

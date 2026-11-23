@@ -42,7 +42,8 @@ public final class ModContenido {
 			Registries.ENTITY_TYPE, TiroParabolico.id("proyectil"),
 			EntityType.Builder.<ProyectilEntity>create(ProyectilEntity::new, SpawnGroup.MISC)
 					.dimensions(0.25f, 0.25f)
-					.maxTrackingRange(16)
+					// En chunks: el proyectil se ve hasta donde alcance la distancia de renderizado.
+					.maxTrackingRange(32)
 					.trackingTickInterval(1)
 					.disableSaving()
 					.disableSummon()
