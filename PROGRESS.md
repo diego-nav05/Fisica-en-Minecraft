@@ -13,9 +13,20 @@ Lo siguiente serían las «Ideas para más adelante» del roadmap.
 | Compilación + tests JUnit de física | `./gradlew build` | 51 tests en verde |
 | Pruebas dentro del juego (servidor) | `./gradlew runGametest` | 26 pruebas en verde |
 
-**Sin verificar:** la parte visual en un cliente real (aspecto del bloque, proyectil en vuelo,
-partículas, textos del chat). El código de cliente compila contra Minecraft 1.21.1, pero el
-entorno donde se desarrolló no puede abrir el juego. Hay que probarlo con `./gradlew runClient`.
+| Prueba manual en un cliente real (macOS, Prism Launcher) | Jugando | Todo funciona, confirmado por el grupo |
+
+## Entregables
+
+| Entregable | Dónde |
+| --- | --- |
+| Mod compilado | `descargas/tiro-parabolico-1.0.0.jar` |
+| Código y documentación | Este repositorio (`README.md`, `ROADMAP.md`, `PROGRESS.md`) |
+| Presentación (16 diapositivas) | Artifact de Slides «Tiro parabólico en Minecraft» |
+| Informe escrito | Documento «Informe · Tiro parabólico en Minecraft» |
+
+Pendiente del grupo: nombres y fecha, una captura del juego, las medidas «En el juego» de la
+tabla de ángulos y la comparación con PhET (huecos marcados con corchetes en la presentación y
+el informe).
 
 ## Hitos completados
 
